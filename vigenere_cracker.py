@@ -1,38 +1,14 @@
 #coding: UTF-8
-import math
+from __future__ import print_function
+import sys
 
-def expectedValue(probabilitiesMap, alphabet):
-    d = 0
+def frequences(str):
+    """
+    Возвращает словарь, состоящий из частот появления отдельных символов в данной строке.
 
-    for ch in probabilitiesMap:
-        d += (alphabet.index(ch) + 1) * probabilitiesMap[ch]
-
-    return d
-
-def indexOfCoincidence(cipher, alphabet):
-    counts = {}
-
-    for a in alphabet:
-        counts[a] = 0
-
-    for ch in cipher:
-        counts[ch] += 1
-
-    index = 0
-    for c in counts:
-        index += (counts[c] * (counts[c] - 1) * 1.0) / (len(cipher) * (len(cipher) - 1) * 1.0)
-
-    return index
-
-def extractSymbols(str, period, shift=0):
-    ret = ""
-    for (i, x) in enumerate(str):
-        if not (i - shift) % period:
-            ret += x
-
-    return ret
-
-def charFrequences(str):
+    Аргументы:
+        str - строка для анализа.
+    """
     dict = {}
     for c in str:
         if c in dict:
@@ -45,73 +21,172 @@ def charFrequences(str):
 
     return dict
 
-def applyGamma(text, gamma, alphabet, uncipher=False):
-    ret = ""
-    gammaPos = 0
+def entropy(string, alphabet):
+    """
+    Возвращает энтропию текста.
+
+    Аргументы:
+        string - анализируемая строка
+        alphabet - коллекция символов алфавита
+    """
+    freq = frequences(string)
+    e = 0
+
+    for ch in freq:
+        e += (alphabet.index(ch) + 1) * freq[ch]
+
+    return e
+
+def indexOfCoincidence(text, alphabet):
+    """
+    Возвращает индекс совпадения (вероятность совпадения двух произвольных символов в тексте).
+    Мин. значение: 1 / len(text)       (для случайного текста)
+    Макс. значение: 1
+
+    Аргументы:
+        text - текст, на основе которого вычисляется индекс
+        alphabet - коллекция символов, которая включает все символы текста
+    """
+    if len(text) == 1:
+        return 0
+
+    counts = {}
+    for a in alphabet:
+        counts[a] = 0
 
     for ch in text:
-        if uncipher:
-            ret += alphabet[(alphabet.index(ch) + alphabet.index(gamma[gammaPos])) % len(alphabet)]
-        else:
-            ret += alphabet[(alphabet.index(ch) - alphabet.index(gamma[gammaPos])) % len(alphabet)]
-        gammaPos = (gammaPos + 1) % len(gamma)
+        counts[ch] += 1
+
+    index = 0
+    for c in counts:
+        index += (counts[c] * (counts[c] - 1) * 1.0) / (len(text) * (len(text) - 1) * 1.0)
+
+    return index
+
+def extractSymbols(str, period, shift=0):
+    """
+    Возвращает строку, состоящую из каждого i-го символа исходной строки.
+
+    Аргументы:
+        str - исходная строка
+        period - период повторений
+        shift - порядковый номер символа, с которого начнется отсчет.
+    """
+    ret = ""
+    i = shift
+    while i < len(str):
+        ret += str[i]
+        i += period
 
     return ret
 
-def addGamma(text, gamma, alphabet):
-    return applyGamma(text, gamma, alphabet, uncipher=False)
+def removeIllegalChars(text, alphabet):
+    arr = set(text) - set(alphabet)
+    if not len(arr):
+        return text
 
-def substractGamma(text, gamma, alphabet):
-    return applyGamma(text, gamma, alphabet, uncipher=True)
+    print ('Warning: text contains %d characters that are not found in the alphabet:\n\t(%s). Ignore them.\n'\
+            % (len(arr), ', '.join(arr)))
 
-def crack(cipher, alphabet, maxGammaLength = 20):
-    values = {}
+    for c in arr:
+        text = text.replace(c, '')
 
-    print "|Cipher| =", len(cipher), "symbols\n"\
+    return text
+
+def applyGamma(text, gamma, alphabet, decode=False):
+    """
+    Складывает гамму с исходным текстом и возвращает результат. Является реализацией шифра Виженера.
+
+    Аргументы:
+        text - исходный текст
+        gamma - ключ шифрования
+        alphabet - список символов, на  основе которого применяется криптографическое преобразование
+        decode - лог. значение; True означает сложение гаммы из текстом, False - вычитание.
+    """
+    ret = ""
+
+    for i, ch in enumerate(text):
+        if decode:
+            ret += alphabet[(alphabet.index(ch) + len(alphabet) - alphabet.index(gamma[i % len(gamma)])) % len(alphabet)]
+        else:
+            ret += alphabet[(alphabet.index(ch) + alphabet.index(gamma[i % len(gamma)])) % len(alphabet)]
+
+    return ret
+
+def crack(cipher, alphabet, keyLength = range(1, 10), variants = 3, output = sys.stdout, moreInfo = True):
+    if not len(cipher):
+        return
+
+    cipher = removeIllegalChars(cipher, alphabet)
+
+    if isinstance(keyLength, int):
+        keyLength = [keyLength]
+
+    print ("|Cipher| =", len(cipher), "symbols\n"\
           "|Alphabet| =", len(alphabet), "symbols\n"\
-          "Max |Gamma| is set to", maxGammaLength, "\n"
+          "Assumed |Gamma| =", keyLength, "\n", file=output)
 
-    for length in range(1, min(len(cipher) - 1, maxGammaLength) + 1):
-        sequence = extractSymbols(cipher, period=length)
-        index = indexOfCoincidence(sequence, alphabet)
+    indexes = {}
+    for length in keyLength:                                # перебираем длины гаммы
+        index = 0                                           # индекс совпадений
+        for i in range(length):                             # считаем для каждой подгруппы симовлов
+            sequence = extractSymbols(cipher, period=length, shift=i)
+            index += indexOfCoincidence(sequence, alphabet)
 
-        if index > 1.0 / len(alphabet) or len(cipher) < 10:
-            values[length] = index
+        index /= 1.0 * length                               # находим средний индекс для всех подгрупп
+        indexes[length] = index
 
-        print "Gamma length =", length, "; Index of coincidence =", index
+        if (moreInfo): print ("Gamma length =", length, "; Index of coincidence =", index, file=output)
 
-    gammaLengths = [x for x in sorted(values, key=values.get, reverse=True)]
-    print "\nMost probable gamma lengths (in descendant order):\n", gammaLengths
+    minIndex = 2.0 / (len(alphabet))                    # допустимый минимальный индекс совпадения
+    print ('Minimal allowed index for this alphabet = %f' % minIndex, file=output)
 
+    gammaLengths = []
+    for l in indexes:                                       # выбираем только те длины гаммы, индексы совпадений
+        if indexes[l] > minIndex: gammaLengths.append(l)    # для которых выше допустимого
+                                                            # опционально: останавливаемся на минимальной длине гаммы
+
+    if not len(gammaLengths):                               # если ни одна длина не подходит, используем ВСЕ
+        gammaLengths = indexes.keys()
+    elif len(gammaLengths) == len(indexes):                 # если все длины подходят, используем [1]
+        gammaLengths = [1]
+
+    print ("\nMost probable gamma length:\n", gammaLengths, file=output)
+
+    results = []
     for length in gammaLengths:
-        print "\n|Gamma| = %d:" % length
+        print ("\n|Gamma| = %d:" % length, file=output)
 
-        probableGamma = ""
+        probableGamma = []
 
-        for i in range(length):
-            print "\tSymbol", i+1, ":"
-            group = extractSymbols(cipher, length, i)
+        for l in range(length):
+            group = extractSymbols(cipher, length, l)
 
             symbols = {}
-            previousVal = 0
-            for j in range(-1, len(alphabet)):
-                val = expectedValue(charFrequences(addGamma(group, alphabet[j], alphabet)), alphabet)
-                if j != -1:
-                    symbols[alphabet[j]] = abs(val - previousVal)
-                    #print "\t", alphabet[j], "=", abs(val - previousVal)
-                previousVal = val
+            for ch in alphabet:
+                val = entropy(applyGamma(group, ch, alphabet, True), alphabet)
+                symbols[ch] = val
+                #print ("\tEntropy of group for gamma =", ch, ":", val, file=output)
 
-            charList = sorted(symbols, key=symbols.get, reverse=True)
-            print "\tMost probable characters:", ", ".join(charList), "\n"
-            probableGamma += charList[0]
+            charList = sorted(symbols, key=symbols.get)
+            if moreInfo: print ("\tMost probable candidates for symbol", l+1, ":", ", ".join(charList), file=output)
+            probableGamma.append(charList)                   # добавляем массив всех символов-кандидатов
 
-        print "\tApplying gamma '%s': %s..." % (probableGamma, applyGamma(cipher[0:80], probableGamma, alphabet))
+        variantsCount = 2**(len(probableGamma))              # выведем два варианта на каждую букву гаммы
+        textVariants = {}                                    # словарь текстов по ключу энтропии
+        for variant in range(variantsCount):
+            gamma = ""
+            for index in range(len(probableGamma)):
+                gamma += probableGamma[index][(variant >> index) % 2]
 
+            result = applyGamma(cipher, gamma, alphabet, True)
+            e = entropy(result, alphabet)
+            textVariants[e] = (gamma, result[:80])
+            results.append(textVariants[e])
 
-cipher   = open(u"G:/Docs/text/Учеба/Криптология/Lab2/Задачи лр №2/5.txt").read().replace("\n", "").decode("UTF-8")
-alphabet = open(u"G:/Docs/text/Учеба/Криптология/Lab2/vigenere_cracker/data/alphabet.txt").read().decode("CP1251")
-crack(cipher, alphabet, maxGammaLength=20)
+        print ("\n\tMost probable text variants:", file=output)
 
-#text = u"ему показалось что он вошел в холодный облицованный мрамором склеп после того как зашла лсна непроницаемый мрак ни намека на еалктый серебряным сиянкгм мир за оилом окна плотно закрыты и комната похожа на могилу куда не долетает ни единый звук большого города однако комната не была пуста"
-#gamma = u"тмжетожетмжетожгтожетмжетмжетмжетожетмжетмжетмжетмжеткжеткжетмжетмжетмжетмжетмжермжетмжетожетмжетожетмжетмжетмжетмжетмжетмжетожетмжетмжетмжетмжетмжетожетмжетмжетожетожетмжетмжетмжетмжетмжетмжетмжетмжетмжетмжефмжермжетмжетожетмжетмжетмжетмжетмжетожзтожетмжетмжетмжерожетмжетмжетмжетмжетмже"
-#print applyGamma(cipher, gamma, alphabet, uncipher=False)
+        for e in sorted(textVariants.keys())[:variants]:   # выберем тексты с наименьшей энтропией
+            print ("\tGamma ='%s'; text = %s..." % textVariants[e], file=output)
+
+    return results
