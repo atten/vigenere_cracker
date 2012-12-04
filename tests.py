@@ -4,11 +4,13 @@ import vigenere_cracker
 import time
 
 
+crypto = vigenere_cracker
 text = u'''ему показалось что он вошел в холодный облицованный мрамором склеп после того как зашла луна непроницаемый
        мрак ни намека на залитый серебряным сиянием мир за окном окна плотно закрыты и комната похожа на могилу куда не
        долетает ни единый звук большого города однако комната не была пуста'''.replace('\n', '')
 
 alphabet = open(u"data/alphabet.txt").read().decode("CP1251")
+frequencyTable = open(u"data/frequency.txt").read().decode("CP1251")
 
 class Gag:                                           # класс для пустого текстового вывода минуя консоль
     def write(self, string):
@@ -17,41 +19,40 @@ class Gag:                                           # класс для пус�
 
 def basicTest():
     global text, alphabet
-    gamma = u'след'
+    gamma = u'срочно'
     start = time.clock()
-    cipher = vigenere_cracker.applyGamma(text, gamma, alphabet)
-    vigenere_cracker.crack(cipher, alphabet)
+    cipher = crypto.applyGamma(text, gamma, alphabet)
+    crypto.crack(cipher, alphabet, frequencyTable, variants=3, moreInfo=True)
     print 'time = %fs' % (time.clock() - start)
 
 
-def timeTest():
-    global text, alphabet
+def speedTest():
+    global text, alphabet, frequencyTable
     gammas = (u'ы',
               u'му',
-              u'дом',
-              u'след',
-              u'бочка',
-              u'тишина',
-              u'молоток',
-              u'бензобак',
-              u'бомбардир',
-              u'бронежилет',
-              u'полуавтомат',
-              u'спецоперация',
-              u'автопогрузчик',
-              u'реструктурация',
-              u'металлочерепица')
+             u'дом',
+             u'след',
+             u'бочка',
+             u'тишина',
+             u'молоток',
+             u'бензобак',
+             u'бомбардир',
+             u'бронежилет',
+             u'полуавтомат',
+             u'спецоперация',
+             u'автопогрузчик',
+             u'реструктурация')
 
     gammaRange = range(1, len(gammas[-1]) + 1)
 
     print 'Starting Time Test for different Gamma lengths [%d...%d]:' % (len(gammas[0]), len(gammas[-1]))
     for g in gammas:
         start = time.clock()
-        cipher = vigenere_cracker.applyGamma(text, g, alphabet)
-        vigenere_cracker.crack(cipher, alphabet, len(g), output=Gag())
+        cipher = crypto.applyGamma(text, g, alphabet)
+        crypto.crack(cipher, alphabet, frequencyTable, len(g), output=Gag())
         elapsed1 = time.clock() - start
         start = time.clock()
-        vigenere_cracker.crack(cipher, alphabet, gammaRange, output=Gag())
+        crypto.crack(cipher, alphabet, frequencyTable, gammaRange, output=Gag())
         elapsed2 = time.clock() - start
         print '|Gamma| = %d ; Pure time = %fs ; Full time = %fs' % (len(g), elapsed1, elapsed2)
 
@@ -71,7 +72,7 @@ def similarityPercent(str1, str2):
 
 
 def reliabilityTest():
-    global text, alphabet
+    global text, alphabet, frequencyTable
 
     gamma = u'двигатель'
 
@@ -80,8 +81,8 @@ def reliabilityTest():
 
     for l in range(len(text), 0, -10):
         start = time.clock()
-        cipher = vigenere_cracker.applyGamma(text[:l], gamma, alphabet)
-        results = vigenere_cracker.crack(cipher, alphabet, keyLength=range(1, len(gamma)+1), output=Gag())
+        cipher = crypto.applyGamma(text[:l], gamma, alphabet)
+        results = crypto.crack(cipher, alphabet, frequencyTable, keyLength=range(1, len(gamma)+1), output=Gag())
         reliability = 0
         reliableGamma = ''
 
@@ -96,9 +97,25 @@ def reliabilityTest():
     print 'Done.'
 
 
+def massiveTest():
+    start = time.clock()
+    print "<html><body>"
+    for i in range(1, 17):
+        print '<center><big><b>----------'
+        print "VARIANT %d" % i
+        print '----------</b></big></center>\n'
+        cipher = open(u"../Задачи лр №2/%d.txt" % i).read().decode("UTF-8").replace('\n', '')
+        crypto.crack(cipher, alphabet, frequencyTable, moreInfo=False)
+
+    print "</body></html>"
+    print 'time = %fs' % (time.clock() - start)
+
+
 def test():
     basicTest()
-    timeTest()
-    reliabilityTest()
+    #speedTest()
+    #reliabilityTest()
+    #massiveTest()
 
 test()
+

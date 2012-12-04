@@ -23,7 +23,7 @@ def frequences(str):
 
 def entropy(string, alphabet):
     """
-    Возвращает энтропию текста.
+    Возвращает мат. ожидание текста.
 
     Аргументы:
         string - анализируемая строка
@@ -113,7 +113,7 @@ def applyGamma(text, gamma, alphabet, decode=False):
 
     return ret
 
-def crack(cipher, alphabet, keyLength = range(1, 10), variants = 3, output = sys.stdout, moreInfo = True):
+def crack(cipher, alphabet, frequencyTable, keyLength = range(1, 10), variants = 3, output = sys.stdout, moreInfo = True):
     if not len(cipher):
         return
 
@@ -121,6 +121,9 @@ def crack(cipher, alphabet, keyLength = range(1, 10), variants = 3, output = sys
 
     if isinstance(keyLength, int):
         keyLength = [keyLength]
+
+    if not len(frequencyTable):
+        frequencyTable = alphabet
 
     print ("|Cipher| =", len(cipher), "symbols\n"\
           "|Alphabet| =", len(alphabet), "symbols\n"\
@@ -138,8 +141,8 @@ def crack(cipher, alphabet, keyLength = range(1, 10), variants = 3, output = sys
 
         if (moreInfo): print ("Gamma length =", length, "; Index of coincidence =", index, file=output)
 
-    minIndex = 2.0 / (len(alphabet))                    # допустимый минимальный индекс совпадения
-    print ('Minimal allowed index for this alphabet = %f' % minIndex, file=output)
+    minIndex = 1.9 / (len(alphabet))                    # допустимый минимальный индекс совпадения
+    if (moreInfo): print ('Minimal allowed index for this alphabet = %f' % minIndex, file=output)
 
     gammaLengths = []
     for l in indexes:                                       # выбираем только те длины гаммы, индексы совпадений
@@ -164,7 +167,7 @@ def crack(cipher, alphabet, keyLength = range(1, 10), variants = 3, output = sys
 
             symbols = {}
             for ch in alphabet:
-                val = entropy(applyGamma(group, ch, alphabet, True), alphabet)
+                val = entropy(applyGamma(group, ch, alphabet, True), frequencyTable)
                 symbols[ch] = val
                 #print ("\tEntropy of group for gamma =", ch, ":", val, file=output)
 
