@@ -21,7 +21,7 @@ def frequences(str):
 
     return dict
 
-def entropy(string, alphabet):
+def expectedValue(string, alphabet):
     """
     Возвращает мат. ожидание текста.
 
@@ -85,7 +85,7 @@ def removeIllegalChars(text, alphabet):
     if not len(arr):
         return text
 
-    print ('Warning: text contains %d characters that are not found in the alphabet:\n\t(%s). Ignore them.\n'\
+    print ('Warning: string contains %d characters that are not in the alphabet: (%s). Skip them.'\
             % (len(arr), ', '.join(arr)))
 
     for c in arr:
@@ -103,8 +103,11 @@ def applyGamma(text, gamma, alphabet, decode=False):
         alphabet - список символов, на  основе которого применяется криптографическое преобразование
         decode - лог. значение; True означает сложение гаммы из текстом, False - вычитание.
     """
+    gamma = removeIllegalChars(gamma, alphabet)
+    if not len(gamma):
+        return ''
+        
     ret = ""
-
     for i, ch in enumerate(text):
         if decode:
             ret += alphabet[(alphabet.index(ch) + len(alphabet) - alphabet.index(gamma[i % len(gamma)])) % len(alphabet)]
@@ -113,7 +116,7 @@ def applyGamma(text, gamma, alphabet, decode=False):
 
     return ret
 
-def crack(cipher, alphabet, frequencyTable, keyLength = range(1, 10), variants = 3, output = sys.stdout, moreInfo = True):
+def crack(cipher, alphabet, frequencyTable, minCoincidence = 0, keyLength = range(1, 10), variants = 3, output = sys.stdout, moreInfo = True):
     if not len(cipher):
         return
 
@@ -127,7 +130,13 @@ def crack(cipher, alphabet, frequencyTable, keyLength = range(1, 10), variants =
 
     print ("|Cipher| =", len(cipher), "symbols\n"\
           "|Alphabet| =", len(alphabet), "symbols\n"\
-          "Assumed |Gamma| =", keyLength, "\n", file=output)
+          "Assumed |Gamma| =", keyLength, file=output)
+
+    if minCoincidence:
+        print ('Min.index of coincidence = %f' % minCoincidence, file=output)
+
+    print ('\n', file=output)
+
 
     indexes = {}
     for length in keyLength:                                # перебираем длины гаммы
@@ -139,14 +148,15 @@ def crack(cipher, alphabet, frequencyTable, keyLength = range(1, 10), variants =
         index /= 1.0 * length                               # находим средний индекс для всех подгрупп
         indexes[length] = index
 
-        if (moreInfo): print ("Gamma length =", length, "; Index of coincidence =", index, file=output)
+        if moreInfo: print ("Gamma length =", length, "; Index of coincidence =", index, file=output)
 
-    minIndex = 1.9 / (len(alphabet))                    # допустимый минимальный индекс совпадения
-    if (moreInfo): print ('Minimal allowed index for this alphabet = %f' % minIndex, file=output)
+    if not minCoincidence:
+        minCoincidence = 1.9 / (len(alphabet))              # допустимый минимальный индекс совпадения
+        if moreInfo: print ('Calculated minimal index for this alphabet = %f' % minCoincidence, file=output)
 
     gammaLengths = []
     for l in indexes:                                       # выбираем только те длины гаммы, индексы совпадений
-        if indexes[l] > minIndex: gammaLengths.append(l)    # для которых выше допустимого
+        if indexes[l] > minCoincidence: gammaLengths.append(l)  # для которых выше допустимого
                                                             # опционально: останавливаемся на минимальной длине гаммы
 
     if not len(gammaLengths):                               # если ни одна длина не подходит, используем ВСЕ
@@ -167,12 +177,12 @@ def crack(cipher, alphabet, frequencyTable, keyLength = range(1, 10), variants =
 
             symbols = {}
             for ch in alphabet:
-                val = entropy(applyGamma(group, ch, alphabet, True), frequencyTable)
+                val = expectedValue(applyGamma(group, ch, alphabet, True), frequencyTable)
                 symbols[ch] = val
-                #print ("\tEntropy of group for gamma =", ch, ":", val, file=output)
+                #print ("\tExp. value of group for gamma =", ch, ":", val, file=output)
 
             charList = sorted(symbols, key=symbols.get)
-            if moreInfo: print ("\tMost probable candidates for symbol", l+1, ":", ", ".join(charList), file=output)
+            if moreInfo: print ("\tMost probable candidates for symbol", l+1, ":", ", ".join(charList[:10]), file=output)
             probableGamma.append(charList)                   # добавляем массив всех символов-кандидатов
 
         variantsCount = 2**(len(probableGamma))              # выведем два варианта на каждую букву гаммы
@@ -182,14 +192,16 @@ def crack(cipher, alphabet, frequencyTable, keyLength = range(1, 10), variants =
             for index in range(len(probableGamma)):
                 gamma += probableGamma[index][(variant >> index) % 2]
 
-            result = applyGamma(cipher, gamma, alphabet, True)
-            e = entropy(result, alphabet)
-            textVariants[e] = (gamma, result[:80])
-            results.append(textVariants[e])
+            result = applyGamma(cipher[:80], gamma, alphabet, True)
+            e = expectedValue(result, alphabet)
+            if len(cipher) > 80:
+                result += '...'
+            textVariants[e] = (gamma, result)
 
         print ("\n\tMost probable text variants:", file=output)
 
         for e in sorted(textVariants.keys())[:variants]:   # выберем тексты с наименьшей энтропией
-            print ("\tGamma ='%s'; text = %s..." % textVariants[e], file=output)
+            results.append(textVariants[e][0])
+            print ("\tGamma ='%s'; text = %s" % textVariants[e], file=output)
 
     return results

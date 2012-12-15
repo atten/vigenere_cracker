@@ -1,16 +1,15 @@
 #coding: UTF-8
 
-import vigenere_cracker
+import vigenere_cracker as crypto
 import time
 
 
-crypto = vigenere_cracker
 text = u'''ему показалось что он вошел в холодный облицованный мрамором склеп после того как зашла луна непроницаемый
        мрак ни намека на залитый серебряным сиянием мир за окном окна плотно закрыты и комната похожа на могилу куда не
        долетает ни единый звук большого города однако комната не была пуста'''.replace('\n', '')
 
-alphabet = open(u"data/alphabet.txt").read().decode("CP1251")
-frequencyTable = open(u"data/frequency.txt").read().decode("CP1251")
+alphabet = u' абвгдежзийклмнопрстуфхцчшщъыьэюя'
+frequencyTable = u' оаеинтрслвкпмудяыьзбгйчюхжшцщфэъ'
 
 class Gag:                                           # класс для пустого текстового вывода минуя консоль
     def write(self, string):
@@ -19,7 +18,7 @@ class Gag:                                           # класс для пус�
 
 def basicTest():
     global text, alphabet
-    gamma = u'срочно'
+    gamma = u'ссрс'
     start = time.clock()
     cipher = crypto.applyGamma(text, gamma, alphabet)
     crypto.crack(cipher, alphabet, frequencyTable, variants=3, moreInfo=True)
@@ -74,7 +73,7 @@ def similarityPercent(str1, str2):
 def reliabilityTest():
     global text, alphabet, frequencyTable
 
-    gamma = u'двигатель'
+    gamma = u'йцукенгшщзх'
 
     print 'Starting Reliability Test for Ciphertexts with different lengths:'
     print '|Gamma| = %d:\n' % len(gamma)
@@ -104,7 +103,7 @@ def massiveTest():
         print '<center><big><b>----------'
         print "VARIANT %d" % i
         print '----------</b></big></center>\n'
-        cipher = open(u"../Задачи лр №2/%d.txt" % i).read().decode("UTF-8").replace('\n', '')
+        cipher = open(u"examples/cipher/%d.txt" % i).read().decode("UTF-8").replace('\n', '')
         crypto.crack(cipher, alphabet, frequencyTable, moreInfo=False)
 
     print "</body></html>"
