@@ -14,7 +14,7 @@ class Widget(QtGui.QMainWindow):
     presets = {}
 
     def __init__(self):
-        super(QtGui.QMainWindow, self).__init__()
+        super(Widget, self).__init__()
 
         self.setupCipherGroup()
         self.setupOptionsGroup()
@@ -78,17 +78,17 @@ class Widget(QtGui.QMainWindow):
         
 
         def copyGammaResult():
-	    items = self.gammaTable.selectedItems()
+            items = self.gammaTable.selectedItems()
             gamma = items[0].text(0)
             QtGui.QApplication.clipboard().setText(gamma)
 
         def copyTextResult():
             items = self.gammaTable.selectedItems()
-            gamma = items[0].text(1)
+            text = items[0].text(1)
             QtGui.QApplication.clipboard().setText(text)
 
         def showDecodedText():
-	    items = self.gammaTable.selectedItems()
+            items = self.gammaTable.selectedItems()
             if not len(items):
                return
 
@@ -104,13 +104,13 @@ class Widget(QtGui.QMainWindow):
             resultsMenu.exec_(point)
             
         def applyGamma():
-	    cipher   = unicode(self.cipher.toPlainText())
-	    alphabet = unicode(self.alphabet.text())
-	    g        = unicode(gamma.text())
-	    order    = not decodeOrder.isChecked()
-	    
-	    text = vigenere_cracker.applyGamma(cipher, g, alphabet, order)
-	    encodedText.setPlainText(text)
+            cipher   = unicode(self.cipher.toPlainText())
+            alphabet = unicode(self.alphabet.text())
+            g        = unicode(gamma.text())
+            order    = not decodeOrder.isChecked()
+
+            text = vigenere_cracker.applyGamma(cipher, g, alphabet, order)
+            encodedText.setPlainText(text)
 	    
 
             
@@ -180,7 +180,7 @@ class Widget(QtGui.QMainWindow):
     def setupMoreOptionsGroup(self):
         self.moreGroup      = QtGui.QGroupBox()        # Custom parameters
         self.resetOptions   = QtGui.QPushButton('Reset by default')
-        self.applyOptions   = QtGui.QPushButton('Crack')
+        self.applyOptions   = QtGui.QPushButton('Apply')
         self.alphabet       = QtGui.QLineEdit()
         self.frequencyList  = QtGui.QLineEdit()
         self.coincidenceVal = QtGui.QDoubleSpinBox()
@@ -218,7 +218,7 @@ class Widget(QtGui.QMainWindow):
             config.read(dir + file)
             name = file
             if '.' in name:
-		name = name[:name.rindex('.')]
+                name = name[:name.rindex('.')]
             self.presets[name] = dict([(key, val.decode("UTF-8").strip('\"')) for key, val in config.items('Preset')])
 
         self.preset.addItems(self.presets.keys())
